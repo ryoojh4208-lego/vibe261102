@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>오늘의 할일</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <!-- 캐릭터 SVG 스프라이트 -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <g id="cat-base">
+        <path d="M20 40 L24 12 L46 28 Z" fill="#FFD66B" stroke="#5B3A1E" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M80 40 L76 12 L54 28 Z" fill="#FFD66B" stroke="#5B3A1E" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M26 30 L27 19 L36 26 Z" fill="#F7A58B"/>
+        <path d="M74 30 L73 19 L64 26 Z" fill="#F7A58B"/>
+        <ellipse cx="50" cy="57" rx="39" ry="32" fill="#FFD66B" stroke="#5B3A1E" stroke-width="3"/>
+        <ellipse cx="25" cy="66" rx="7" ry="4.5" fill="#F7A58B" opacity="0.75"/>
+        <ellipse cx="75" cy="66" rx="7" ry="4.5" fill="#F7A58B" opacity="0.75"/>
+        <ellipse cx="50" cy="62" rx="2.6" ry="1.9" fill="#5B3A1E"/>
+      </g>
+    </defs>
+    <symbol id="cat" viewBox="0 0 100 100">
+      <use href="#cat-base"/>
+      <ellipse cx="36" cy="55" rx="3.2" ry="4.2" fill="#3A2412"/>
+      <ellipse cx="64" cy="55" rx="3.2" ry="4.2" fill="#3A2412"/>
+      <path d="M44 66 Q47 70 50 66 Q53 70 56 66" fill="none" stroke="#5B3A1E" stroke-width="2.4" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="cat-happy" viewBox="0 0 100 100">
+      <use href="#cat-base"/>
+      <path d="M31 57 Q36 50 41 57" fill="none" stroke="#3A2412" stroke-width="3" stroke-linecap="round"/>
+      <path d="M59 57 Q64 50 69 57" fill="none" stroke="#3A2412" stroke-width="3" stroke-linecap="round"/>
+      <path d="M44 66 Q50 77 56 66 Z" fill="#E86F5A" stroke="#5B3A1E" stroke-width="2.2" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="cat-sleep" viewBox="0 0 100 100">
+      <use href="#cat-base"/>
+      <path d="M31 56 Q36 60 41 56" fill="none" stroke="#3A2412" stroke-width="3" stroke-linecap="round"/>
+      <path d="M59 56 Q64 60 69 56" fill="none" stroke="#3A2412" stroke-width="3" stroke-linecap="round"/>
+      <path d="M46 67 Q50 69 54 67" fill="none" stroke="#5B3A1E" stroke-width="2.4" stroke-linecap="round"/>
+      <text x="80" y="22" font-family="sans-serif" font-weight="700" font-size="16" fill="#A47551">z</text>
+      <text x="90" y="10" font-family="sans-serif" font-weight="700" font-size="11" fill="#A47551">z</text>
+    </symbol>
+    <symbol id="potato" viewBox="0 0 100 100">
+      <path d="M84 36 Q92 26 98 30 Q92 34 88 42 Z" fill="#8DA43A" stroke="#5B3A1E" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M8 62 C10 40 40 28 66 32 C84 35 94 46 90 60 C86 76 62 86 40 82 C20 79 6 74 8 62 Z" fill="#B8573A" stroke="#5B3A1E" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M24 46 Q28 44 31 46" fill="none" stroke="#8A3D26" stroke-width="2" stroke-linecap="round"/>
+      <path d="M70 74 Q74 72 77 74" fill="none" stroke="#8A3D26" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="40" cy="58" r="3.2" fill="#3A2412"/>
+      <circle cx="62" cy="56" r="3.2" fill="#3A2412"/>
+      <ellipse cx="32" cy="66" rx="5" ry="3" fill="#F7A58B" opacity="0.8"/>
+      <ellipse cx="70" cy="64" rx="5" ry="3" fill="#F7A58B" opacity="0.8"/>
+      <path d="M46 64 Q51 69 56 63" fill="none" stroke="#3A2412" stroke-width="2.4" stroke-linecap="round"/>
+    </symbol>
+  </svg>
+
+  <main class="app">
+    <div id="storage-banner" class="banner banner--warn" hidden>
+      이 브라우저에서는 데이터가 저장되지 않아요. 페이지를 닫으면 할일이 사라져요.
+    </div>
+
+    <section class="card">
+      <header class="header">
+        <svg class="header__cat" aria-hidden="true"><use href="#cat"/></svg>
+        <div class="header__text">
+          <h1 class="header__title">오늘의 할일</h1>
+          <p id="today" class="header__date"></p>
+        </div>
+        <button id="theme-toggle" class="icon-btn theme-toggle" type="button"></button>
+        <svg class="header__potato" aria-hidden="true"><use href="#potato"/></svg>
+      </header>
+
+      <div class="progress">
+        <div class="progress__track" role="progressbar" aria-label="오늘 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div id="progress-fill" class="progress__fill"></div>
+          <svg id="progress-cat" class="progress__cat" aria-hidden="true"><use href="#cat"/></svg>
+          <svg class="progress__potato" aria-hidden="true"><use href="#potato"/></svg>
+        </div>
+        <p id="progress-text" class="progress__text"></p>
+      </div>
+
+      <div id="celebrate" class="celebrate" hidden>
+        <svg class="celebrate__cat" aria-hidden="true"><use href="#cat-happy"/></svg>
+        <p>오늘 할일을 모두 끝냈어요! 🎉</p>
+        <svg class="celebrate__potato" aria-hidden="true"><use href="#potato"/></svg>
+      </div>
+
+      <div id="carry-banner" class="banner banner--carry" hidden>
+        <p id="carry-text"></p>
+        <div class="banner__actions">
+          <button id="carry-accept" class="btn btn--primary btn--small" type="button">오늘로 가져오기</button>
+          <button id="carry-dismiss" class="btn btn--ghost btn--small" type="button">괜찮아요</button>
+        </div>
+      </div>
+
+      <form id="add-form" class="add-form" autocomplete="off">
+        <label for="new-todo" class="visually-hidden">새 할일</label>
+        <input id="new-todo" class="add-form__input" type="text" maxlength="100" placeholder="할 일을 입력하세요..." autofocus>
+        <label for="new-priority" class="visually-hidden">우선순위</label>
+        <select id="new-priority" class="add-form__select">
+          <option value="high">높음</option>
+          <option value="medium" selected>보통</option>
+          <option value="low">낮음</option>
+        </select>
+        <button class="btn btn--primary" type="submit">추가</button>
+      </form>
+
+      <nav class="filters" aria-label="할일 필터">
+        <button class="filter" type="button" data-filter="all">전체</button>
+        <button class="filter" type="button" data-filter="active">진행 중</button>
+        <button class="filter" type="button" data-filter="done">완료</button>
+      </nav>
+
+      <ul id="todo-list" class="todo-list"></ul>
+
+      <div id="empty-state" class="empty" hidden>
+        <div id="empty-art" class="empty__art">
+          <svg class="empty__cat" aria-hidden="true"><use href="#cat-sleep"/></svg>
+          <svg class="empty__potato" aria-hidden="true"><use href="#potato"/></svg>
+        </div>
+        <p id="empty-text"></p>
+      </div>
+
+      <footer class="footer">
+        <span id="remaining"></span>
+        <button id="clear-completed" class="btn btn--ghost btn--small" type="button">완료 항목 지우기</button>
+      </footer>
+    </section>
+
+    <p class="legend">
+      <span class="dot dot--high"></span>높음
+      <span class="dot dot--medium"></span>보통
+      <span class="dot dot--low"></span>낮음
+    </p>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden>
+    <span>삭제됨</span>
+    <button id="toast-undo" class="toast__undo" type="button">되돌리기</button>
+  </div>
+</body>
+</html>
