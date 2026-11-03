@@ -8,3 +8,6 @@ kospi200_*.csv
 kospi200_*.xlsx
 naver_news_*.csv
 naver_news_*.xlsx
+
+# 출생아수 분석 실행 결과물
+birth_data/output/
