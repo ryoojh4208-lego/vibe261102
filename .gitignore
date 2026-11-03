@@ -2,3 +2,9 @@
 build/
 dist/
 *.spec
+
+# 크롤러 실행 결과 데이터
+kospi200_*.csv
+kospi200_*.xlsx
+naver_news_*.csv
+naver_news_*.xlsx
