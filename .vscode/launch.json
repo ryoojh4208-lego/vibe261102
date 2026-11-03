@@ -4,7 +4,14 @@
     // 자세한 내용을 보려면 https://go.microsoft.com/fwlink/?linkid=830387을(를) 방문하세요.
     "version": "0.2.0",
     "configurations": [
-    
+        {
+            "name": "키워드 뉴스 크롤러 실행",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/naver_keyword_news_crawler.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
         {
             "name": "Python 디버거: 현재 파일",
             "type": "debugpy",

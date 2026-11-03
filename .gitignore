@@ -1,0 +1,4 @@
+# PyInstaller 빌드 결과물
+build/
+dist/
+*.spec
