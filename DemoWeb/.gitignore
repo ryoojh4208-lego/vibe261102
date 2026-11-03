@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -40,5 +41,3 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# 게시판 런타임 데이터 (없으면 첫 실행 때 샘플 글로 생성됨)
-/data/

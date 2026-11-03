@@ -1,7 +1,6 @@
 import "server-only"
 
-import { promises as fs } from "fs"
-import path from "path"
+import { neon, type NeonQueryFunction } from "@neondatabase/serverless"
 
 export type Post = {
   id: number
@@ -14,52 +13,57 @@ export type Post = {
 
 export type PostInput = Pick<Post, "title" | "author" | "content">
 
-const DATA_FILE = path.join(process.cwd(), "data", "posts.json")
+type Row = {
+  id: number
+  title: string
+  author: string
+  content: string
+  created_at: Date
+  updated_at: Date
+}
 
-const SEED: Post[] = [
-  {
-    id: 1,
-    title: "게시판에 오신 것을 환영합니다",
-    author: "관리자",
-    content:
-      "DemoWeb 게시판입니다.\n상단의 '글쓰기' 버튼으로 새 글을 작성하고, 글 상세 화면에서 수정·삭제할 수 있습니다.",
-    createdAt: "2026-11-03T00:00:00.000Z",
-    updatedAt: "2026-11-03T00:00:00.000Z",
-  },
-]
+function getSql() {
+  const url = process.env.DATABASE_URL
+  if (!url) throw new Error("DATABASE_URL 환경 변수가 없습니다. .env.local을 확인하세요.")
+  return neon(url)
+}
 
-async function readAll(): Promise<Post[]> {
-  try {
-    const raw = await fs.readFile(DATA_FILE, "utf8")
-    return JSON.parse(raw) as Post[]
-  } catch (err) {
-    // 파일이 없으면 샘플 글로 시작하고, 첫 쓰기 때 파일이 만들어진다
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-      return structuredClone(SEED)
-    }
+// 서버 프로세스마다 처음 한 번만 테이블을 만들고, 비어 있으면 안내 글을 넣는다
+let ready: Promise<NeonQueryFunction<false, false>> | null = null
+function db() {
+  ready ??= (async () => {
+    const sql = getSql()
+    await sql`
+      CREATE TABLE IF NOT EXISTS posts (
+        id         SERIAL PRIMARY KEY,
+        title      VARCHAR(100) NOT NULL,
+        author     VARCHAR(30)  NOT NULL,
+        content    TEXT         NOT NULL,
+        created_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ  NOT NULL DEFAULT now()
+      )`
+    await sql`
+      INSERT INTO posts (title, author, content)
+      SELECT '게시판에 오신 것을 환영합니다', '관리자',
+             E'DemoWeb 게시판입니다.\n상단의 ''글쓰기'' 버튼으로 새 글을 작성하고, 글 상세 화면에서 수정·삭제할 수 있습니다.'
+      WHERE NOT EXISTS (SELECT 1 FROM posts)`
+    return sql
+  })().catch((err) => {
+    ready = null
     throw err
-  }
-}
-
-async function writeAll(posts: Post[]) {
-  await fs.mkdir(path.dirname(DATA_FILE), { recursive: true })
-  // 임시 파일에 쓴 뒤 교체해서 쓰기 도중 파일이 깨지지 않게 한다
-  const tmp = `${DATA_FILE}.${process.pid}.tmp`
-  await fs.writeFile(tmp, JSON.stringify(posts, null, 2), "utf8")
-  await fs.rename(tmp, DATA_FILE)
-}
-
-// 동시에 들어온 쓰기 요청을 한 줄로 세워 서로 덮어쓰지 않게 한다
-let queue: Promise<unknown> = Promise.resolve()
-function mutate<T>(fn: (posts: Post[]) => Promise<T> | T): Promise<T> {
-  const run = queue.then(async () => {
-    const posts = await readAll()
-    const result = await fn(posts)
-    await writeAll(posts)
-    return result
   })
-  queue = run.catch(() => {})
-  return run
+  return ready
+}
+
+function toPost(row: Row): Post {
+  return {
+    id: row.id,
+    title: row.title,
+    author: row.author,
+    content: row.content,
+    createdAt: new Date(row.created_at).toISOString(),
+    updatedAt: new Date(row.updated_at).toISOString(),
+  }
 }
 
 export async function listPosts({
@@ -71,53 +75,57 @@ export async function listPosts({
   page?: number
   pageSize?: number
 }) {
-  const q = query.trim().toLowerCase()
-  const filtered = (await readAll())
-    .filter((p) => !q || p.title.toLowerCase().includes(q))
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id)
+  const sql = await db()
+  // %, _ 를 글자 그대로 검색하도록 이스케이프
+  const pattern = `%${query.trim().replace(/[\\%_]/g, "\\$&")}%`
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const [{ count }] = (await sql`
+    SELECT count(*)::int AS count FROM posts WHERE title ILIKE ${pattern}
+  `) as { count: number }[]
+
+  const totalPages = Math.max(1, Math.ceil(count / pageSize))
   const current = Math.min(Math.max(1, page), totalPages)
-  return {
-    posts: filtered.slice((current - 1) * pageSize, current * pageSize),
-    total: filtered.length,
-    page: current,
-    totalPages,
-  }
+  const rows = (await sql`
+    SELECT * FROM posts
+    WHERE title ILIKE ${pattern}
+    ORDER BY created_at DESC, id DESC
+    LIMIT ${pageSize} OFFSET ${(current - 1) * pageSize}
+  `) as Row[]
+
+  return { posts: rows.map(toPost), total: count, page: current, totalPages }
 }
 
 export async function getPost(id: number) {
-  return (await readAll()).find((p) => p.id === id) ?? null
+  if (!Number.isInteger(id)) return null
+  const sql = await db()
+  const rows = (await sql`SELECT * FROM posts WHERE id = ${id}`) as Row[]
+  return rows[0] ? toPost(rows[0]) : null
 }
 
-export function createPost(input: PostInput) {
-  return mutate((posts) => {
-    const now = new Date().toISOString()
-    const post: Post = {
-      id: posts.reduce((max, p) => Math.max(max, p.id), 0) + 1,
-      ...input,
-      createdAt: now,
-      updatedAt: now,
-    }
-    posts.push(post)
-    return post
-  })
+export async function createPost(input: PostInput) {
+  const sql = await db()
+  const rows = (await sql`
+    INSERT INTO posts (title, author, content)
+    VALUES (${input.title}, ${input.author}, ${input.content})
+    RETURNING *
+  `) as Row[]
+  return toPost(rows[0])
 }
 
-export function updatePost(id: number, input: PostInput) {
-  return mutate((posts) => {
-    const post = posts.find((p) => p.id === id)
-    if (!post) return null
-    Object.assign(post, input, { updatedAt: new Date().toISOString() })
-    return post
-  })
+export async function updatePost(id: number, input: PostInput) {
+  const sql = await db()
+  const rows = (await sql`
+    UPDATE posts
+    SET title = ${input.title}, author = ${input.author}, content = ${input.content},
+        updated_at = now()
+    WHERE id = ${id}
+    RETURNING *
+  `) as Row[]
+  return rows[0] ? toPost(rows[0]) : null
 }
 
-export function deletePost(id: number) {
-  return mutate((posts) => {
-    const index = posts.findIndex((p) => p.id === id)
-    if (index === -1) return false
-    posts.splice(index, 1)
-    return true
-  })
+export async function deletePost(id: number) {
+  const sql = await db()
+  const rows = await sql`DELETE FROM posts WHERE id = ${id} RETURNING id`
+  return rows.length > 0
 }
