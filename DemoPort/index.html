@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DemoPort | HRD 전문가 프로필</title>
+  <meta name="description" content="HRD · 교육기획 · 교육진행 · 조직문화 전문가 프로필" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="DemoPort | HRD 전문가 프로필" />
+  <meta property="og:description" content="HRD · 교육기획 · 교육진행 · 조직문화 전문가 프로필" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="nav" id="nav">
+    <div class="container nav-inner">
+      <a href="#top" class="logo">DemoPort</a>
+      <button class="nav-toggle" id="navToggle" aria-label="메뉴 열기" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <nav class="nav-links" id="navLinks">
+        <a href="#about">소개</a>
+        <a href="#expertise">전문분야</a>
+        <a href="#experience">경력</a>
+        <a href="#projects">포트폴리오</a>
+        <a href="#credentials">자격·학력</a>
+        <a href="#contact" class="nav-cta">연락하기</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="container hero-inner">
+        <p class="eyebrow">HRD Professional</p>
+        <h1 class="hero-title"><span data-bind="name"></span><span class="hero-sub" data-bind="headline"></span></h1>
+        <p class="hero-summary" data-bind="summary"></p>
+        <ul class="tags" id="heroTags"></ul>
+        <div class="hero-actions">
+          <a href="#contact" class="btn btn-primary">연락하기</a>
+          <a href="#projects" class="btn btn-ghost">포트폴리오 보기</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="about" class="section">
+      <div class="container about">
+        <div class="about-photo" id="aboutPhoto"></div>
+        <div>
+          <h2 class="section-title">소개</h2>
+          <div id="aboutText" class="about-text"></div>
+          <ul class="values" id="values"></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="expertise" class="section section-alt">
+      <div class="container">
+        <h2 class="section-title">전문분야</h2>
+        <div class="grid grid-4" id="expertiseGrid"></div>
+      </div>
+    </section>
+
+    <section id="experience" class="section">
+      <div class="container">
+        <h2 class="section-title">경력</h2>
+        <ol class="timeline" id="timeline"></ol>
+      </div>
+    </section>
+
+    <section id="projects" class="section section-alt">
+      <div class="container">
+        <h2 class="section-title">포트폴리오</h2>
+        <div class="filters" id="filters" role="tablist" aria-label="분야별 필터"></div>
+        <div class="grid grid-2" id="projectGrid"></div>
+      </div>
+    </section>
+
+    <section id="credentials" class="section">
+      <div class="container">
+        <h2 class="section-title">자격 및 학력</h2>
+        <div class="grid grid-2">
+          <div class="cred-block">
+            <h3>학력</h3>
+            <ul class="cred-list" id="educationList"></ul>
+          </div>
+          <div class="cred-block">
+            <h3>자격증</h3>
+            <ul class="cred-list" id="certList"></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="contact" class="section contact">
+      <div class="container contact-inner">
+        <h2 class="section-title">함께 성장할 기회를 찾고 있습니다</h2>
+        <p class="contact-desc">채용, 강의·워크숍 의뢰, 교육 컨설팅 문의 모두 환영합니다.</p>
+        <div class="contact-actions">
+          <a class="btn btn-primary btn-lg" id="mailLink" href="#"></a>
+          <button class="btn btn-ghost btn-lg" id="copyEmail" type="button">이메일 복사</button>
+        </div>
+        <p class="copy-msg" id="copyMsg" role="status" aria-live="polite"></p>
+        <ul class="ext-links" id="extLinks"></ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">© <span id="year"></span> <span data-bind="name"></span>. All rights reserved.</div>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
