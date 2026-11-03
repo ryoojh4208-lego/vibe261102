@@ -3,7 +3,6 @@
 import { useTransition } from "react"
 import { Trash2 } from "lucide-react"
 
-import { deletePost } from "@/app/actions"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,28 +16,41 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 
-export function DeletePostButton({ id, title }: { id: number; title: string }) {
+type Props = {
+  /** 확인 버튼을 누르면 실행할 Server Action (인자는 bind로 미리 넣어 둔다) */
+  action: () => Promise<void>
+  title: string
+  description: string
+  label?: string
+  size?: "default" | "sm" | "xs"
+}
+
+export function ConfirmDeleteButton({
+  action,
+  title,
+  description,
+  label = "삭제",
+  size = "default",
+}: Props) {
   const [pending, startTransition] = useTransition()
 
   return (
     <AlertDialog>
-      <AlertDialogTrigger render={<Button variant="destructive" />}>
+      <AlertDialogTrigger render={<Button variant="destructive" size={size} />}>
         <Trash2 />
-        삭제
+        {label}
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>게시글을 삭제할까요?</AlertDialogTitle>
-          <AlertDialogDescription>
-            &lsquo;{title}&rsquo; 글이 영구히 삭제되며 되돌릴 수 없습니다.
-          </AlertDialogDescription>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>취소</AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
             disabled={pending}
-            onClick={() => startTransition(() => deletePost(id))}
+            onClick={() => startTransition(() => action())}
           >
             {pending ? "삭제 중…" : "삭제"}
           </AlertDialogAction>

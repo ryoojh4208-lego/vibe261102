@@ -1,76 +1,64 @@
 import "server-only"
 
-import { neon, type NeonQueryFunction } from "@neondatabase/serverless"
+import { db, iso } from "@/lib/db"
 
-export type Post = {
+export type PostSummary = {
   id: number
   title: string
   author: string
-  content: string
   createdAt: string
+  views: number
+  likeCount: number
+  commentCount: number
+}
+
+export type Post = PostSummary & {
+  boardId: number
+  boardName: string
+  content: string
   updatedAt: string
+  liked: boolean
 }
 
 export type PostInput = Pick<Post, "title" | "author" | "content">
 
-type Row = {
+type SummaryRow = {
   id: number
   title: string
   author: string
-  content: string
   created_at: Date
+  views: number
+  like_count: number
+  comment_count: number
+}
+
+type Row = SummaryRow & {
+  board_id: number
+  board_name: string
+  content: string
   updated_at: Date
+  liked: boolean
 }
 
-function getSql() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error("DATABASE_URL 환경 변수가 없습니다. .env.local을 확인하세요.")
-  return neon(url)
-}
-
-// 서버 프로세스마다 처음 한 번만 테이블을 만들고, 비어 있으면 안내 글을 넣는다
-let ready: Promise<NeonQueryFunction<false, false>> | null = null
-function db() {
-  ready ??= (async () => {
-    const sql = getSql()
-    await sql`
-      CREATE TABLE IF NOT EXISTS posts (
-        id         SERIAL PRIMARY KEY,
-        title      VARCHAR(100) NOT NULL,
-        author     VARCHAR(30)  NOT NULL,
-        content    TEXT         NOT NULL,
-        created_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
-        updated_at TIMESTAMPTZ  NOT NULL DEFAULT now()
-      )`
-    await sql`
-      INSERT INTO posts (title, author, content)
-      SELECT '게시판에 오신 것을 환영합니다', '관리자',
-             E'DemoWeb 게시판입니다.\n상단의 ''글쓰기'' 버튼으로 새 글을 작성하고, 글 상세 화면에서 수정·삭제할 수 있습니다.'
-      WHERE NOT EXISTS (SELECT 1 FROM posts)`
-    return sql
-  })().catch((err) => {
-    ready = null
-    throw err
-  })
-  return ready
-}
-
-function toPost(row: Row): Post {
+function toSummary(row: SummaryRow): PostSummary {
   return {
     id: row.id,
     title: row.title,
     author: row.author,
-    content: row.content,
-    createdAt: new Date(row.created_at).toISOString(),
-    updatedAt: new Date(row.updated_at).toISOString(),
+    createdAt: iso(row.created_at)!,
+    views: row.views,
+    likeCount: row.like_count,
+    commentCount: row.comment_count,
   }
 }
 
 export async function listPosts({
+  boardId,
   query = "",
   page = 1,
   pageSize = 10,
 }: {
+  boardId: number
   query?: string
   page?: number
   pageSize?: number
@@ -80,52 +68,100 @@ export async function listPosts({
   const pattern = `%${query.trim().replace(/[\\%_]/g, "\\$&")}%`
 
   const [{ count }] = (await sql`
-    SELECT count(*)::int AS count FROM posts WHERE title ILIKE ${pattern}
+    SELECT count(*)::int AS count FROM posts
+    WHERE board_id = ${boardId} AND title ILIKE ${pattern}
   `) as { count: number }[]
 
   const totalPages = Math.max(1, Math.ceil(count / pageSize))
   const current = Math.min(Math.max(1, page), totalPages)
   const rows = (await sql`
-    SELECT * FROM posts
-    WHERE title ILIKE ${pattern}
-    ORDER BY created_at DESC, id DESC
+    SELECT p.id, p.title, p.author, p.created_at, p.views,
+           (SELECT count(*) FROM post_likes l WHERE l.post_id = p.id)::int AS like_count,
+           (SELECT count(*) FROM comments c WHERE c.post_id = p.id)::int AS comment_count
+    FROM posts p
+    WHERE p.board_id = ${boardId} AND p.title ILIKE ${pattern}
+    ORDER BY p.created_at DESC, p.id DESC
     LIMIT ${pageSize} OFFSET ${(current - 1) * pageSize}
-  `) as Row[]
+  `) as SummaryRow[]
 
-  return { posts: rows.map(toPost), total: count, page: current, totalPages }
+  return { posts: rows.map(toSummary), total: count, page: current, totalPages }
 }
 
-export async function getPost(id: number) {
+export async function getPost(id: number, visitorId?: string) {
   if (!Number.isInteger(id)) return null
   const sql = await db()
-  const rows = (await sql`SELECT * FROM posts WHERE id = ${id}`) as Row[]
-  return rows[0] ? toPost(rows[0]) : null
+  const rows = (await sql`
+    SELECT p.*, b.name AS board_name,
+           (SELECT count(*) FROM post_likes l WHERE l.post_id = p.id)::int AS like_count,
+           (SELECT count(*) FROM comments c WHERE c.post_id = p.id)::int AS comment_count,
+           EXISTS (SELECT 1 FROM post_likes l
+                   WHERE l.post_id = p.id AND l.visitor_id = ${visitorId ?? ""}) AS liked
+    FROM posts p JOIN boards b ON b.id = p.board_id
+    WHERE p.id = ${id}
+  `) as Row[]
+  const row = rows[0]
+  if (!row) return null
+  return {
+    ...toSummary(row),
+    boardId: row.board_id,
+    boardName: row.board_name,
+    content: row.content,
+    updatedAt: iso(row.updated_at)!,
+    liked: row.liked,
+  } satisfies Post
 }
 
-export async function createPost(input: PostInput) {
+export async function createPost(boardId: number, input: PostInput) {
   const sql = await db()
   const rows = (await sql`
-    INSERT INTO posts (title, author, content)
-    VALUES (${input.title}, ${input.author}, ${input.content})
-    RETURNING *
-  `) as Row[]
-  return toPost(rows[0])
+    INSERT INTO posts (board_id, title, author, content)
+    VALUES (${boardId}, ${input.title}, ${input.author}, ${input.content})
+    RETURNING id
+  `) as { id: number }[]
+  return rows[0].id
 }
 
 export async function updatePost(id: number, input: PostInput) {
   const sql = await db()
-  const rows = (await sql`
+  const rows = await sql`
     UPDATE posts
     SET title = ${input.title}, author = ${input.author}, content = ${input.content},
         updated_at = now()
     WHERE id = ${id}
-    RETURNING *
-  `) as Row[]
-  return rows[0] ? toPost(rows[0]) : null
+    RETURNING id
+  `
+  return rows.length > 0
 }
 
+/** 삭제한 글이 있던 게시판 ID를 돌려준다 */
 export async function deletePost(id: number) {
   const sql = await db()
-  const rows = await sql`DELETE FROM posts WHERE id = ${id} RETURNING id`
-  return rows.length > 0
+  const rows = (await sql`
+    DELETE FROM posts WHERE id = ${id} RETURNING board_id
+  `) as { board_id: number }[]
+  return rows[0]?.board_id ?? null
+}
+
+export async function incrementViews(id: number) {
+  const sql = await db()
+  const rows = (await sql`
+    UPDATE posts SET views = views + 1 WHERE id = ${id} RETURNING views
+  `) as { views: number }[]
+  return rows[0]?.views ?? null
+}
+
+/** 하트를 누른 상태면 취소하고, 아니면 누른다 */
+export async function toggleLike(postId: number, visitorId: string) {
+  const sql = await db()
+  const removed = await sql`
+    DELETE FROM post_likes WHERE post_id = ${postId} AND visitor_id = ${visitorId}
+    RETURNING post_id
+  `
+  if (removed.length === 0) {
+    await sql`
+      INSERT INTO post_likes (post_id, visitor_id)
+      SELECT id, ${visitorId} FROM posts WHERE id = ${postId}
+      ON CONFLICT DO NOTHING
+    `
+  }
 }

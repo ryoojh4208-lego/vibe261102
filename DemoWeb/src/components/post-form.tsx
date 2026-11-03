@@ -10,8 +10,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 
+type PostFormState = FormState<"title" | "author" | "content">
+
 type Props = {
-  action: (state: FormState, formData: FormData) => Promise<FormState>
+  action: (state: PostFormState, formData: FormData) => Promise<PostFormState>
   defaultValues?: { title: string; author: string; content: string }
   submitLabel: string
   cancelHref: string
@@ -71,7 +73,7 @@ export function PostForm({ action, defaultValues, submitLabel, cancelHref }: Pro
   )
 }
 
-function Field({
+export function Field({
   id,
   label,
   error,
